@@ -1,0 +1,1 @@
+import pandas as pd; files=['customers','products','stores','employees','discounts','transactions']; [print(f, len(pd.read_csv('data/'+f+'.csv'))) for f in files]

@@ -1,0 +1,161 @@
+services:
+
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: namenode
+    restart: unless-stopped
+    ports:
+      - "9870:9870"
+      - "9000:9000"
+    environment:
+      - CLUSTER_NAME=fashion-cluster
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
+    volumes:
+     - namenode_data:/hadoop/dfs/name
+     - ./data:/dataset:ro
+    networks:
+      - bigdata
+
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: datanode
+    restart: unless-stopped
+    ports:
+      - "9864:9864"
+    environment:
+      - CLUSTER_NAME=fashion-cluster
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
+      - SERVICE_PRECONDITION=namenode:9870
+    volumes:
+      - datanode_data:/hadoop/dfs/data
+    depends_on:
+      - namenode
+    networks:
+      - bigdata
+
+  
+  kafka:
+    image: apache/kafka:4.1.0
+    container_name: kafka
+    restart: unless-stopped
+
+    ports:
+      - "9092:9092"
+
+    networks:
+      - bigdata
+
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+
+    volumes:
+      - ./data:/data
+
+
+  producer:
+    build:
+      context: .
+      dockerfile: producer.Dockerfile
+
+    container_name: kafka-producer
+
+    depends_on:
+      - kafka
+
+    volumes:
+      - ./data:/data
+
+    networks:
+      - bigdata
+
+  consumer:
+    build:
+      context: .
+      dockerfile: consumer.Dockerfile
+
+    container_name: kafka-consumer
+
+    depends_on:
+      - kafka
+      - namenode
+      - datanode
+
+    volumes:
+      - ./hadoop-config:/opt/hadoop/etc/hadoop
+
+    networks:
+      - bigdata
+
+    environment:
+      HADOOP_CONF_DIR: /opt/hadoop/etc/hadoop
+   
+
+
+  spark-master:
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
+    container_name: spark-master
+    restart: unless-stopped
+    entrypoint: []
+    command:
+      - /bin/bash
+      - -c
+      - |
+        /opt/spark/sbin/start-master.sh
+        tail -f /dev/null
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    volumes:
+      - ./hadoop-config:/opt/spark/conf/hadoop
+    environment:
+      HADOOP_CONF_DIR: /opt/spark/conf/hadoop
+    networks:
+      - bigdata
+
+  spark-worker:
+    build:
+     context: .
+     dockerfile: Dockerfile.spark
+    container_name: spark-worker
+    restart: unless-stopped
+    depends_on:
+      - spark-master
+    entrypoint: []
+    command:
+      - /bin/bash
+      - -c
+      - |
+        sleep 5
+        /opt/spark/sbin/start-worker.sh spark://spark-master:7077
+        tail -f /dev/null
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./hadoop-config:/opt/spark/conf/hadoop
+    environment:
+      HADOOP_CONF_DIR: /opt/spark/conf/hadoop
+      SPARK_WORKER_MEMORY: 1G
+      SPARK_WORKER_CORES: 2
+    networks:
+      - bigdata
+volumes:
+  namenode_data:
+  datanode_data:
+
+networks:
+  bigdata:
+    driver: bridge
+
+
