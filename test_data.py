@@ -1,1 +1,6 @@
-import pandas as pd; files=['customers','products','stores','employees','discounts','transactions']; [print(f, len(pd.read_csv('data/'+f+'.csv'))) for f in files]
+import sys
+sys.path.insert(0, "/opt/spark/apps")
+from spark.cleaning import clean_all
+from spark.transformation import transform_all ,fact_df
+
+print(fact_df.show(5, truncate=False))
