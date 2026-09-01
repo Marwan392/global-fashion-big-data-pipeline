@@ -105,27 +105,40 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.spark
+
     container_name: spark-master
+
     restart: unless-stopped
+
     entrypoint: []
+
     command:
       - /bin/bash
       - -c
       - |
         /opt/spark/sbin/start-master.sh
+
+        python3 -m uvicorn backend:app \
+          --app-dir /opt/spark/apps \
+          --host 0.0.0.0 \
+          --port 8000 &
+
         tail -f /dev/null
+
     ports:
       - "8080:8080"
       - "7077:7077"
       - "8000:8000"
+
     volumes:
       - ./hadoop-config:/opt/spark/conf/hadoop
       - ./spark:/opt/spark/apps
+
     environment:
       HADOOP_CONF_DIR: /opt/spark/conf/hadoop
+  
     networks:
       - bigdata
-
   spark-worker:
     build:
      context: .
