@@ -5,7 +5,7 @@ Takes the cleaned DataFrames from cleaning.py and joins them into a single
 denormalized, transaction-level DataFrame with derived business columns.
 This is the table feature_eng.py will build ML features on top of.
 
-Usage:
+Usage (in-memory, e.g. from another Spark script in the same run):
     from cleaning import get_spark, clean_all
     from transformation import transform_all
 
@@ -13,9 +13,18 @@ Usage:
     clean_dfs = clean_all(spark)
     fact_df = transform_all(clean_dfs)
 
-This module does NOT write anything to disk/HDFS.
+Run standalone to build AND persist the fact table to HDFS as Parquet at
+hdfs://namenode:9000/data/processed/fact_transactions — so downstream
+scripts (explore.py, feature_eng.py) can just read it back instead of
+re-running cleaning + transformation every time:
+
+    /opt/spark/bin/spark-submit transformation.py
+
+Then elsewhere:
+    fact_df = spark.read.parquet(f"{HDFS_URI}/data/processed/fact_transactions")
 """
 
+import os
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
@@ -31,6 +40,9 @@ FX_RATES_TO_USD = {
     "GBP": 1.27,
     "CNY": 0.14,
 }
+
+HDFS_URI = os.environ.get("HDFS_URI", "hdfs://namenode:9000")
+PROCESSED_PATH = f"{HDFS_URI}/data/processed/fact_transactions"
 
 
 def add_usd_columns(tx: DataFrame) -> DataFrame:
@@ -176,8 +188,18 @@ if __name__ == "__main__":
     clean_dfs = clean_all(spark)
     fact_df = transform_all(clean_dfs).cache()
 
-    print(f"\n[transformation] fact table row count: {fact_df.count():,}")
+    row_count = fact_df.count()
+    print(f"\n[transformation] fact table row count: {row_count:,}")
     fact_df.printSchema()
     fact_df.show(5, truncate=False)
+
+    print(f"\n[transformation] writing fact table to {PROCESSED_PATH} ...")
+    (
+        fact_df.write
+        .mode("overwrite")
+        .partitionBy("Purchase Year", "Purchase Month")  # cheap date-range reads later
+        .parquet(PROCESSED_PATH)
+    )
+    print(f"[transformation] done — {row_count:,} rows written")
 
     spark.stop()

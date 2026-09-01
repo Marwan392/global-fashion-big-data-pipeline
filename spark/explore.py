@@ -3,20 +3,30 @@ Scratch space for inspecting the fact table without touching
 cleaning.py / transformation.py. Edit freely — this file isn't part
 of the real pipeline.
 
+Reads the already-persisted fact table from HDFS (written by running
+transformation.py directly) instead of re-running cleaning + transformation
+every time — much faster for repeated exploration.
+
+If you've changed cleaning.py or transformation.py, rerun transformation.py
+first to refresh hdfs://namenode:9000/data/processed/fact_transactions,
+then rerun this.
+
 Run:
     docker exec -it spark-master /opt/spark/bin/spark-submit \
         --master spark://spark-master:7077 /opt/spark/apps/explore.py
 """
 
+import os
 from pyspark.sql import functions as F
-from cleaning import get_spark, clean_all
-from transformation import transform_all
+from cleaning import get_spark
+
+HDFS_URI = os.environ.get("HDFS_URI", "hdfs://namenode:9000")
+PROCESSED_PATH = f"{HDFS_URI}/data/processed/fact_transactions"
 
 spark = get_spark()
 spark.sparkContext.setLogLevel("WARN")
 
-clean_dfs = clean_all(spark)
-fact_df = transform_all(clean_dfs).cache()
+fact_df = spark.read.parquet(PROCESSED_PATH).cache()
 
 
 def section(title):
