@@ -117,6 +117,7 @@ services:
     ports:
       - "8080:8080"
       - "7077:7077"
+      - "8000:8000"
     volumes:
       - ./hadoop-config:/opt/spark/conf/hadoop
       - ./spark:/opt/spark/apps
