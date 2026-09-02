@@ -71,7 +71,6 @@ page = st.sidebar.radio(
         "SQL Analytics",
         "Customer Analytics",
         "Churn Predictions",
-        "Model Performance",
     ],
 )
 
@@ -427,52 +426,3 @@ elif page == "Churn Predictions":
             hide_index=True,
             height=450,
         )
-
-
-# Model Performance
-else:
-    st.title("Machine Learning Performance")
-    st.caption("Customer churn classification models")
-
-    try:
-        data = api("/model-performance")
-    except RuntimeError as exc:
-        show_api_error(exc)
-        st.stop()
-
-    st.success(f"Best Model: {data['best_model']}")
-
-    df = pd.DataFrame(data["models"])
-    display = df.copy()
-
-    metrics = [
-        "roc_auc", "f1", "precision", "recall",
-        "churn_precision", "churn_recall", "churn_f1",
-    ]
-
-    for metric in metrics:
-        display[metric] = (display[metric] * 100).round(2)
-
-    st.dataframe(display, use_container_width=True, hide_index=True)
-
-    chart_df = df.melt(
-        id_vars="name",
-        value_vars=["roc_auc", "churn_f1"],
-        var_name="Metric",
-        value_name="Score",
-    )
-
-    st.subheader("Model Comparison")
-
-    model_chart = (
-        alt.Chart(chart_df)
-        .mark_bar()
-        .encode(
-            x="name:N",
-            y=alt.Y("Score:Q", scale=alt.Scale(domain=[0, 1])),
-            color="Metric:N",
-            tooltip=["name", "Metric", "Score"],
-        )
-        .properties(height=400)
-    )
-    st.altair_chart(model_chart, use_container_width=True)

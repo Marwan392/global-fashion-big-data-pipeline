@@ -344,44 +344,6 @@ def churn_distribution():
 
     return cached("churn-distribution", load)
 
-@app.get("/model-performance")
-def model_performance():
-    return {
-        "best_model": "LogisticRegression",
-        "models": [
-            {
-                "name": "Logistic Regression",
-                "roc_auc": 0.6400,
-                "f1": 0.6103,
-                "precision": 0.6536,
-                "recall": 0.6724,
-                "churn_precision": 0.6805,
-                "churn_recall": 0.9358,
-                "churn_f1": 0.7880
-            },
-            {
-                "name": "Decision Tree",
-                "roc_auc": 0.5815,
-                "f1": 0.6157,
-                "precision": 0.6517,
-                "recall": 0.6725,
-                "churn_precision": 0.6829,
-                "churn_recall": 0.9270,
-                "churn_f1": 0.7864
-            },
-            {
-                "name": "Random Forest",
-                "roc_auc": 0.6403,
-                "f1": 0.6197,
-                "precision": 0.6523,
-                "recall": 0.6733,
-                "churn_precision": 0.6849,
-                "churn_recall": 0.9220,
-                "churn_f1": 0.7860
-            }
-        ]
-    }
-
 @app.get("/sql-analytics")
 def sql_analytics():
     return cached("sql-analytics", execute_analytics_sql)
