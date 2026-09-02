@@ -1,6 +1,6 @@
 # Dataset files
 data/*.csv
-
+hdfs_export/*
 # Python
 __pycache__/
 *.pyc
