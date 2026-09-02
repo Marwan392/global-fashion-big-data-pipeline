@@ -18,7 +18,7 @@ ANALYTICS_SQL_PATH = os.getenv(
 )
 
 EXPECTED_SQL_QUERIES = 15
-CACHE_TTL = 120
+CACHE_TTL = 86400
 MAX_SQL_ROWS = 5000
 
 app = FastAPI(
@@ -37,8 +37,31 @@ spark = (
 )
 spark.sparkContext.setLogLevel("WARN")
 
+# Batch data is static between pipeline runs: keep processed datasets cached in Spark.
+_fact_df = None
+_churn_df = None
+_data_lock = threading.Lock()
+
 cache = {}
 cache_lock = threading.Lock()
+
+def get_fact_df():
+    global _fact_df
+    if _fact_df is None:
+        with _data_lock:
+            if _fact_df is None:
+                _fact_df = spark.read.parquet(FACT_PATH).cache()
+                _fact_df.count()  # materialize once
+    return _fact_df
+
+def get_churn_df():
+    global _churn_df
+    if _churn_df is None:
+        with _data_lock:
+            if _churn_df is None:
+                _churn_df = spark.read.parquet(CHURN_PATH).cache()
+                _churn_df.count()  # materialize once
+    return _churn_df
 
 def cached(key, loader):
     now = time.time()
@@ -227,7 +250,7 @@ def sql_health():
 def summary():
     def load():
         row = (
-            read_parquet(FACT_PATH)
+            get_fact_df()
             .agg(
                 F.count("*").alias("transactions"),
                 F.sum("Line Total USD").alias("revenue"),
@@ -256,7 +279,7 @@ def summary():
 def customer_analytics():
     def load():
         row = (
-            read_parquet(CHURN_PATH)
+            get_churn_df()
             .agg(
                 F.sum(F.when(F.col("RiskLevel") == "HIGH", 1).otherwise(0)).alias("high"),
                 F.sum(F.when(F.col("RiskLevel") == "MEDIUM", 1).otherwise(0)).alias("medium"),
@@ -285,7 +308,7 @@ def customer_analytics():
 def churn_summary():
     def load():
         row = (
-            read_parquet(CHURN_PATH)
+            get_churn_df()
             .agg(
                 F.count("*").alias("total"),
                 F.sum(F.when(F.col("PredictedChurn") == 1, 1).otherwise(0)).alias("churn"),
@@ -312,7 +335,7 @@ def churn_summary():
 def high_risk_customers():
     def load():
         df = (
-            read_parquet(CHURN_PATH)
+            get_churn_df()
             .filter(F.col("RiskLevel") == "HIGH")
             .select(
                 "Customer ID",
@@ -331,7 +354,7 @@ def high_risk_customers():
 def churn_distribution():
     def load():
         df = (
-            read_parquet(CHURN_PATH)
+            get_churn_df()
             .select(
                 "Customer ID",
                 "ChurnProbability",

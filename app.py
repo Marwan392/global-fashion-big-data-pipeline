@@ -26,7 +26,7 @@ SQL_QUERY_ORDER = [
 ]
 
 
-@st.cache_data(ttl=15, show_spinner=False)
+@st.cache_data(ttl=60, show_spinner=False)
 def backend_online():
     try:
         return requests.get(f"{API}/health", timeout=5).ok
@@ -34,7 +34,7 @@ def backend_online():
         return False
 
 
-@st.cache_data(ttl=120, show_spinner=False)
+@st.cache_data(ttl=86400, show_spinner=False)
 def api(endpoint, timeout=180):
     try:
         r = requests.get(f"{API}{endpoint}", timeout=timeout)
@@ -44,7 +44,7 @@ def api(endpoint, timeout=180):
         raise RuntimeError(f"Backend request failed: {exc}") from exc
 
 
-@st.cache_data(ttl=600, show_spinner=False)
+@st.cache_data(ttl=86400, show_spinner=False)
 def sql_analytics():
     try:
         r = requests.get(f"{API}/sql-analytics", timeout=300)
