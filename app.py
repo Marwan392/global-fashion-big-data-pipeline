@@ -54,15 +54,6 @@ def sql_analytics():
         raise RuntimeError(f"SQL analytics request failed: {exc}") from exc
 
 
-def refresh_everything():
-    st.cache_data.clear()
-    try:
-        r = requests.post(f"{API}/refresh-cache", timeout=30)
-        r.raise_for_status()
-    except requests.RequestException:
-        pass
-    st.rerun()
-
 
 def show_api_error(exc):
     st.error("Unable to load this section from the FastAPI backend.")
@@ -88,9 +79,6 @@ online = backend_online()
 (st.sidebar.success if online else st.sidebar.error)(
     "Backend Connected" if online else "Backend Offline"
 )
-
-if st.sidebar.button("Refresh Data", use_container_width=True):
-    refresh_everything()
 
 if not online:
     st.error(f"FastAPI backend is unavailable at {API}.")

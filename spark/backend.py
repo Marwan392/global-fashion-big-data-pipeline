@@ -30,6 +30,9 @@ spark = (
     SparkSession.builder
     .appName("GlobalFashionRetailAnalyticsAPI")
     .master("spark://spark-master:7077")
+    .config("spark.executor.memory", "3g")
+    .config("spark.executor.cores", "4")
+    .config("spark.cores.max", "4")
     .getOrCreate()
 )
 spark.sparkContext.setLogLevel("WARN")
@@ -47,10 +50,6 @@ def cached(key, loader):
     with cache_lock:
         cache[key] = {"time": time.time(), "value": value}
     return value
-
-def clear_cache():
-    with cache_lock:
-        cache.clear()
 
 def read_parquet(path):
     try:
@@ -399,11 +398,3 @@ def sql_analytics_query(query_name: str):
         "sql-analytics",
         execute_analytics_sql
     )["queries"][query_name]
-
-@app.post("/refresh-cache")
-def refresh_cache():
-    clear_cache()
-    return {
-        "status": "cache_cleared",
-        "message": "FastAPI analytics cache has been cleared."
-    }
