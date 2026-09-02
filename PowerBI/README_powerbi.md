@@ -314,7 +314,7 @@ Then they can be displayed in this README using:
 
 ```markdown
 ## Executive Overview
-![Executive Overview](docs/images/executive-overview.png)
+![Executive Overview](Screenshot_2026-09-02_231722.png)
 
 ## Product Performance
 ![Product Performance](docs/images/product-performance.png)
